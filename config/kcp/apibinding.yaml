@@ -1,0 +1,14 @@
+apiVersion: apis.kcp.dev/v1alpha1
+kind: APIBinding
+metadata:
+  name: settings-configuration.pipeline-service.io
+spec:
+  reference:
+    workspace:
+      exportName: settings-configuration.pipeline-service.io
+      path: root:pipelines-service:management
+  acceptedPermissionClaims:
+  - group: ""
+    resource: secrets
+  - group: ""
+    resource: configmaps
