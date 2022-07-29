@@ -4,7 +4,7 @@ metadata:
   name: configuration.pipeline-service.io
 spec:
   latestResourceSchemas:
-    - today.widgets.configuration.pipeline-service.io
+    - today.settings.configuration.pipeline-service.io
   permissionClaims:
   - group: ""
     resource: secrets

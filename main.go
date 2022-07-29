@@ -23,11 +23,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/kcp"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	settingsv1alpha1 "github.com/openshift-pipelines/pipeline-service/settings-controller/api/v1alpha1"
+	settingsv1alpha1 "github.com/fgiloux/settings-controller/api/v1alpha1"
 
 	// +kubebuilder:scaffold:imports
 
-	"github.com/openshift-pipelines/pipeline-service/settings-controller/controllers"
+	"github.com/fgiloux/settings-controller/controllers"
 
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 )
@@ -116,11 +116,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ConfigMap")
 	}
 
-	if err = (&controllers.WidgetReconciler{
+	if err = (&controllers.SettingsReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Widget")
+		setupLog.Error(err, "unable to create controller", "controller", "Settings")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

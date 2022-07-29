@@ -86,7 +86,7 @@ rules:
 - apiGroups:
   - configuration.pipeline-service.io
   resources:
-  - widgets
+  - settings
   verbs:
   - create
   - delete
@@ -98,13 +98,13 @@ rules:
 - apiGroups:
   - configuration.pipeline-service.io
   resources:
-  - widgets/finalizers
+  - settings/finalizers
   verbs:
   - update
 - apiGroups:
   - configuration.pipeline-service.io
   resources:
-  - widgets/status
+  - settings/status
   verbs:
   - get
   - patch

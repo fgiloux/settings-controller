@@ -2,7 +2,7 @@ domain: pipeline-service.io
 layout:
 - go.kubebuilder.io/v3
 projectName: settings-controller
-repo: github.com/openshift-pipelines/pipeline-service/settings-controller
+repo: https://github.com/fgiloux/settings-controller
 resources:
 - api:
     crdVersion: v1
@@ -10,7 +10,7 @@ resources:
   controller: true
   domain: pipeline-service.io
   group: configuration
-  kind: Widget
-  path: github.com/openshift-pipelines/pipeline-service/settings-controller/api/v1alpha1
+  kind: Settings
+  path: https://github.com/fgiloux/settings-controller/api/v1alpha1
   version: v1alpha1
 version: "3"

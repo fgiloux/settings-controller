@@ -1,5 +1,7 @@
 # Pipeline-Service Settings Operator
 
+WIP: currently transitioning from the controller-runtime example to the desired resources.
+
 This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline-Service](https://github.com/openshift-pipelines/pipelines-service).
 
 ## Description
@@ -97,4 +99,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-

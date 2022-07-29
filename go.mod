@@ -1,4 +1,4 @@
-module github.com/openshift-pipelines/pipeline-service/settings-controller
+module github.com/fgiloux/settings-controller
 
 go 1.17
 
