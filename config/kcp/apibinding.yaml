@@ -9,6 +9,8 @@ spec:
       path: root:pipelines-service:management
   acceptedPermissionClaims:
   - group: ""
+    resource: resourcequotas
+  - group: ""
     resource: secrets
   - group: ""
     resource: configmaps

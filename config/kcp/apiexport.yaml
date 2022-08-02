@@ -7,6 +7,8 @@ spec:
     - today.settings.configuration.pipeline-service.io
   permissionClaims:
   - group: ""
+    resource: resourcequotas
+  - group: ""
     resource: secrets
   - group: ""
     resource: configmaps
