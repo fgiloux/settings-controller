@@ -60,32 +60,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - resourcequotas
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - resourcequotas/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ""
-  resources:
-  - resourcequotas/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ""
-  resources:
   - secrets
   verbs:
   - create
@@ -131,6 +105,32 @@ rules:
   - configuration.pipeline-service.io
   resources:
   - settings/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies/status
   verbs:
   - get
   - patch

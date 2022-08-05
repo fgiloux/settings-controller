@@ -6,8 +6,10 @@ spec:
   latestResourceSchemas:
     - today.settings.configuration.pipeline-service.io
   permissionClaims:
-  - group: ""
-    resource: resourcequotas
+  - group: "networking.k8s.io"
+    resource: networkpolicies
+    # TODO: temporarely setting identityHash it should not be needed later on
+    identityHash: "84768171a4d7be24311f6552c153144363ee0fa66163bddd739b774bfb7e7ecb"
   - group: ""
     resource: secrets
   - group: ""

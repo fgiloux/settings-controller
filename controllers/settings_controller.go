@@ -6,10 +6,11 @@ import (
 
 	"github.com/kcp-dev/logicalcluster"
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -24,9 +25,9 @@ type SettingsReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=resourcequotas/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=resourcequotas/finalizers,verbs=update
+// +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies/finalizers,verbs=update
 
 // +kubebuilder:rbac:groups=configuration.pipeline-service.io,resources=settings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=configuration.pipeline-service.io,resources=settings/status,verbs=get;update;patch
@@ -61,55 +62,81 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	quotaCondition := metav1.Condition{
-		Type:   "QuotaReady",
+	npCondition := metav1.Condition{
+		Type:   "NetworkPoliciesReady",
 		Status: metav1.ConditionTrue,
 		LastTransitionTime: metav1.Time{
 			Time: time.Now().UTC(),
 		},
-		Reason:  "QuotaCreated",
-		Message: "ResourceQuota pipeline-service has successfully been created in kcp-system namespace",
+		Reason:  "NetworkPoliciesCreated",
+		Message: "NetworkPolicies for pipeline-service have successfully been created in kcp-system namespace",
 	}
 	scopy := s.DeepCopy()
 	conditionNew := true
 	conditionChanged := false
 	var rtnErr error
 
-	var wsQuota corev1.ResourceQuota
-	wsQuota.SetNamespace("kcp-system")
-	wsQuota.SetName("quota")
+	// var wsQuota corev1.ResourceQuota
+	// wsQuota.SetNamespace("kcp-system")
+	// wsQuota.SetName("pipeline-service")
 
 	// TODO: hardcoded quota for now, should be provided by ComponentConfig
-	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsQuota, func() error {
+	/* operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsQuota, func() error {
 		wsQuota.Spec = corev1.ResourceQuotaSpec{
 			Hard: map[corev1.ResourceName]resource.Quantity{
 				"count/namespace": resource.MustParse("10"),
 			},
 		}
 		return nil
+	})*/
+
+	// TODO: a single NP for a single namespace for now.
+	// The current limiting design is not to allow users to CRUD namespaces
+	// TODO: namespace should be named pipeline-service, would need to be created
+	// TODO: hardcoded NP for now, should be provided by ComponentConfig
+	var wsNP netv1.NetworkPolicy
+	wsNP.SetNamespace("kcp-system")
+	wsNP.SetName("platform")
+
+	protocol := corev1.ProtocolTCP
+	port := intstr.FromString("5978")
+	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {
+		wsNP.Spec = netv1.NetworkPolicySpec{
+			PolicyTypes: []netv1.PolicyType{"Egress"},
+			Egress: []netv1.NetworkPolicyEgressRule{netv1.NetworkPolicyEgressRule{
+				Ports: []netv1.NetworkPolicyPort{netv1.NetworkPolicyPort{
+					Protocol: &protocol,
+					Port:     &port}},
+				To: []netv1.NetworkPolicyPeer{netv1.NetworkPolicyPeer{
+					IPBlock: &netv1.IPBlock{
+						CIDR: "192.168.244.0/24"},
+				}},
+			}},
+		}
+		return nil
 	})
 	if rtnErr != nil {
-		logger.Error(rtnErr, "unable to create or patch the resourceQuota")
-		quotaCondition.Status = metav1.ConditionFalse
-		quotaCondition.Reason = "Error"
-		quotaCondition.Message = "Unable to create or patch the resourceQuota"
+		logger.Error(rtnErr, "unable to create or patch the NetworkPolicy")
+		npCondition.Status = metav1.ConditionFalse
+		npCondition.Reason = "Error"
+		npCondition.Message = "Unable to create or patch the NetworkPolicy"
 	}
-	logger.Info(string(operationResult), "resourceQuota", wsQuota.GetName())
+	logger.Info(string(operationResult), "networkPolicy", wsNP.GetName())
 
 	// Update the condition only if it is missing or the status of the available condition has changed.
 	// TODO: it would be good to set condition to unknown at the very beginning of the processing when none has been defined and to reloop
 	for i, condition := range s.Status.Conditions {
-		if condition.Type == quotaCondition.Type {
+		if condition.Type == npCondition.Type {
 			conditionNew = false
-			if condition.Status != quotaCondition.Status || condition.Reason != quotaCondition.Reason {
-				s.Status.Conditions[i] = quotaCondition
+			if condition.Status != npCondition.Status || condition.Reason != npCondition.Reason {
+				s.Status.Conditions[i] = npCondition
 				conditionChanged = true
 				break
 			}
 		}
 	}
 	if conditionNew {
-		s.Status.Conditions = append(s.Status.Conditions, quotaCondition)
+		s.Status.Conditions = append(s.Status.Conditions, npCondition)
 		conditionChanged = true
 	}
 
@@ -119,7 +146,7 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 		if err := r.Status().Patch(ctx, &s, patch); err != nil {
 			logger.Info("Patch error", "error", err)
-			// TODO: depending on the error I may just give up
+			// TODO: depending on the error it may be better to just give up
 			if rtnErr == nil {
 				return ctrl.Result{}, err
 			}
@@ -133,6 +160,6 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 func (r *SettingsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&settingsv1alpha1.Settings{}).
-		Owns(&corev1.ResourceQuota{}).
+		Owns(&netv1.NetworkPolicy{}).
 		Complete(r)
 }

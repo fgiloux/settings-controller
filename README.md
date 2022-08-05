@@ -2,7 +2,7 @@
 
 WIP: currently transitioning from the controller-runtime example to the desired resources.
 
-This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline-Service](https://github.com/openshift-pipelines/pipelines-service).
+This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline-Service](https://github.com/openshift-pipelines/pipeline-service).
 
 ## Description
 
