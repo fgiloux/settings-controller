@@ -1,12 +1,12 @@
-# Pipeline-Service Settings Operator
+# Pipeline Service Settings Operator
 
 Work in progress.
 
-This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline-Service](https://github.com/openshift-pipelines/pipeline-service).
+This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline Service](https://github.com/openshift-pipelines/pipeline-service).
 
 ## Description
 
-Pipeline-Service offers an infrastructure for easily run Tekton Pipelines in a secured and isolated way. Therefore some restrictions need to be set on the workspaces than can consume the Pipeline-Service infrastructure.
+Pipeline Service offers an infrastructure to easily run Tekton Pipelines in a secured and isolated way. Therefore some restrictions need to be set on the workspaces that can consume the Pipeline Service infrastructure.
 
 - Quotas limit the amount of compute resources that can be consumed.
 - NetworkPolicies restrict the access granted to the pods running the pipeline tasks.

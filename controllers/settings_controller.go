@@ -40,15 +40,6 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// there.
 	logger = logger.WithValues("clusterName", req.ClusterName)
 
-	// TODO: to be removed
-	// You probably wouldn't need to do this, but if you wanted to list all instances across all logical clusters:
-	var allSettings settingsv1alpha1.SettingsList
-	if err := r.List(ctx, &allSettings); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	logger.Info("Listed all Settings across all workspaces", "count", len(allSettings.Items))
-
 	// Add the logical cluster to the context
 	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 

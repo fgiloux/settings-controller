@@ -16,6 +16,7 @@ vendor/
 
 # IDE files
 .idea
+.vscode
 
 hack/tools
 
