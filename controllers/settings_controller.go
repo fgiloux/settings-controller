@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kcp-dev/logicalcluster"
+	"github.com/kcp-dev/logicalcluster/v2"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -78,7 +78,14 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// var wsQuota corev1.ResourceQuota
 	// wsQuota.SetNamespace("kcp-system")
-	// wsQuota.SetName("pipeline-service")
+	// wsQuota.SetName("platform")
+	// .SetOwnerReferences([]metav1.OwnerReference{metav1.OwnerReference{
+	//        Name:   s.GetName(),
+	//        UID:    s.GetUID(),
+	//        APIVersion: "v1alpha1",
+	//               Kind: "Settings",
+	//               Controller: func() *bool { x := true; return &x }(),
+	//        }})
 
 	// TODO: hardcoded quota for now, should be provided by ComponentConfig
 	/* operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsQuota, func() error {
@@ -97,7 +104,13 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var wsNP netv1.NetworkPolicy
 	wsNP.SetNamespace("kcp-system")
 	wsNP.SetName("platform")
-
+	wsNP.SetOwnerReferences([]metav1.OwnerReference{metav1.OwnerReference{
+		Name:       s.GetName(),
+		UID:        s.GetUID(),
+		APIVersion: "v1alpha1",
+		Kind:       "Settings",
+		Controller: func() *bool { x := true; return &x }(),
+	}})
 	protocol := corev1.ProtocolTCP
 	port := intstr.FromString("5978")
 	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {

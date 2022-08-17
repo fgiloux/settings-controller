@@ -84,6 +84,14 @@ rules:
   - patch
   - update
 - apiGroups:
+  - apis.kcp.dev
+  resources:
+  - apiexports
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - configuration.pipeline-service.io
   resources:
   - settings

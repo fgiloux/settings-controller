@@ -8,9 +8,12 @@ spec:
   permissionClaims:
   - group: "networking.k8s.io"
     resource: networkpolicies
-    # TODO: temporarely setting identityHash it should not be needed later on
-    identityHash: "84768171a4d7be24311f6552c153144363ee0fa66163bddd739b774bfb7e7ecb"
+    # identityHash needs to match the export of the workload cluster
+    # it can be set with: make patch-identity 
+    identityHash: "7c334c170297d24fb96651cc69f41e43ab38b432ed91f49c13ab945f45a0dfbe"
   - group: ""
-    resource: secrets
+    resource: "secrets"
   - group: ""
-    resource: configmaps
+    resource: "configmaps"
+  - group: ""
+    resource: "namespaces"

@@ -23,6 +23,8 @@ all: build
 # kcp specific
 APIEXPORT_PREFIX ?= today
 
+COMPUTE_APIBINDING ?= kubernetes
+
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -77,7 +79,7 @@ APIEXPORT_NAME ?= pipeline-service.io
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go $(NAME_PREFIX)$(APIEXPORT_NAME)
+	go run ./main.go --api-export-name $(NAME_PREFIX)$(APIEXPORT_NAME)
 
 .PHONY: docker-build
 docker-build: build ## Build docker image with the manager.
@@ -92,6 +94,9 @@ docker-push: ## Push docker image with the manager.
 ifndef ignore-not-found
   ignore-not-found = false
 endif
+.PHONY: patch-identity
+patch-identity: 
+	./hack/patch-identity.sh i${COMPUTE_APIBINDING}
 
 .PHONY: install
 install: manifests kustomize ## Install APIResourceSchemas and APIExport into kcp (using $KUBECONFIG or ~/.kube/config).
@@ -107,7 +112,7 @@ deploy-crd: manifests kustomize ## Deploy controller
 	$(KUSTOMIZE) build config/default-crd | kubectl apply -f - || true
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller
+deploy: manifests patch-identity kustomize ## Deploy controller
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 

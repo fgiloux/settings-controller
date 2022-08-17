@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "go",
+            "request": "launch",
+            "name": "Debug App",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--api-export-name", "settings-configuration.pipeline-service.io"
+            ],
+            "env": {
+                "KUBECONFIG":"/tmp/kcp-pipeline-service.stXAhZ9xH/.kcp/admin.kubeconfig"
+            },
+        }
+
+    ]
+}

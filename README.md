@@ -1,6 +1,6 @@
 # Pipeline-Service Settings Operator
 
-WIP: currently transitioning from the controller-runtime example to the desired resources.
+Work in progress.
 
 This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline-Service](https://github.com/openshift-pipelines/pipeline-service).
 
