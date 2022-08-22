@@ -1,0 +1,20 @@
+# permissions for end users to view settingsconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: settingsconfig-viewer-role
+rules:
+- apiGroups:
+  - configuration.pipeline-service.io
+  resources:
+  - settingsconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - configuration.pipeline-service.io
+  resources:
+  - settingsconfigs/status
+  verbs:
+  - get

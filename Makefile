@@ -96,7 +96,7 @@ ifndef ignore-not-found
 endif
 .PHONY: patch-identity
 patch-identity: 
-	./hack/patch-identity.sh i${COMPUTE_APIBINDING}
+	./hack/patch-identity.sh ${COMPUTE_APIBINDING}
 
 .PHONY: install
 install: manifests kustomize ## Install APIResourceSchemas and APIExport into kcp (using $KUBECONFIG or ~/.kube/config).
@@ -140,7 +140,9 @@ KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/k
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
+ifeq ("$(wildcard $(KUSTOMIZE))","")
 	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+endif
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.

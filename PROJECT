@@ -2,7 +2,7 @@ domain: pipeline-service.io
 layout:
 - go.kubebuilder.io/v3
 projectName: settings-controller
-repo: https://github.com/fgiloux/settings-controller
+repo: github.com/fgiloux/settings-controller
 resources:
 - api:
     crdVersion: v1
@@ -11,6 +11,14 @@ resources:
   domain: pipeline-service.io
   group: configuration
   kind: Settings
-  path: https://github.com/fgiloux/settings-controller/api/v1alpha1
+  path: github.com/fgiloux/settings-controller/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: pipeline-service.io
+  group: configuration
+  kind: SettingsConfig
+  path: github.com/fgiloux/settings-controller/api/v1alpha1
   version: v1alpha1
 version: "3"

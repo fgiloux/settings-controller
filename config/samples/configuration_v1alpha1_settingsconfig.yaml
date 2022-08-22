@@ -1,0 +1,7 @@
+apiVersion: configuration.pipeline-service.io/v1alpha1
+kind: SettingsConfig
+metadata:
+  name: settingsconfig-sample
+spec:
+  # Add fields here
+  foo: bar

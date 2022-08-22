@@ -5,12 +5,10 @@ import (
 	"time"
 
 	"github.com/kcp-dev/logicalcluster/v2"
-	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -22,7 +20,8 @@ import (
 // SettingsReconciler reconciles a Settings object
 type SettingsReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme     *runtime.Scheme
+	CtrlConfig settingsv1alpha1.SettingsConfig
 }
 
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -67,31 +66,9 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	conditionChanged := false
 	var rtnErr error
 
-	// var wsQuota corev1.ResourceQuota
-	// wsQuota.SetNamespace("kcp-system")
-	// wsQuota.SetName("platform")
-	// .SetOwnerReferences([]metav1.OwnerReference{metav1.OwnerReference{
-	//        Name:   s.GetName(),
-	//        UID:    s.GetUID(),
-	//        APIVersion: "v1alpha1",
-	//               Kind: "Settings",
-	//               Controller: func() *bool { x := true; return &x }(),
-	//        }})
-
-	// TODO: hardcoded quota for now, should be provided by ComponentConfig
-	/* operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsQuota, func() error {
-		wsQuota.Spec = corev1.ResourceQuotaSpec{
-			Hard: map[corev1.ResourceName]resource.Quantity{
-				"count/namespace": resource.MustParse("10"),
-			},
-		}
-		return nil
-	})*/
-
 	// TODO: a single NP for a single namespace for now.
 	// The current limiting design is not to allow users to CRUD namespaces
 	// TODO: namespace should be named pipeline-service, would need to be created
-	// TODO: hardcoded NP for now, should be provided by ComponentConfig
 	var wsNP netv1.NetworkPolicy
 	wsNP.SetNamespace("kcp-system")
 	wsNP.SetName("platform")
@@ -102,20 +79,10 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		Kind:       "Settings",
 		Controller: func() *bool { x := true; return &x }(),
 	}})
-	protocol := corev1.ProtocolTCP
-	port := intstr.FromString("5978")
 	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {
 		wsNP.Spec = netv1.NetworkPolicySpec{
 			PolicyTypes: []netv1.PolicyType{"Egress"},
-			Egress: []netv1.NetworkPolicyEgressRule{netv1.NetworkPolicyEgressRule{
-				Ports: []netv1.NetworkPolicyPort{netv1.NetworkPolicyPort{
-					Protocol: &protocol,
-					Port:     &port}},
-				To: []netv1.NetworkPolicyPeer{netv1.NetworkPolicyPeer{
-					IPBlock: &netv1.IPBlock{
-						CIDR: "192.168.244.0/24"},
-				}},
-			}},
+			Egress:      r.CtrlConfig.NetPolConfig.Egress,
 		}
 		return nil
 	})

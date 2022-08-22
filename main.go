@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	settingsv1alpha1 "github.com/fgiloux/settings-controller/api/v1alpha1"
-
 	// +kubebuilder:scaffold:imports
 
 	"github.com/fgiloux/settings-controller/controllers"
@@ -47,27 +46,33 @@ func init() {
 }
 
 func main() {
+	var configFile string
 	var metricsAddr string
 	var enableLeaderElection bool
+	var leaderElectionNs string
 	var probeAddr string
 	var apiExportName string
+	flag.StringVar(&configFile, "config", "/config/controller_manager_config.yaml", "The controller will load its initial configuration from this file. "+
+		"Omit this flag to use the default configuration values. "+
+		"Command-line flags override configuration from this file.")
 	flag.StringVar(&apiExportName, "api-export-name", "", "The name of the APIExport.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
+	flag.StringVar(&leaderElectionNs, "leader-elect-ns", "", "The namespace used for leader election")
+	logOpts := zap.Options{
 		Development: true,
 	}
 
-	opts.BindFlags(flag.CommandLine)
+	logOpts.BindFlags(flag.CommandLine)
 	klog.InitFlags(flag.CommandLine)
 
 	flag.Parse()
 	flag.Lookup("v").Value.Set("6")
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&logOpts)))
 
 	ctx := ctrl.SetupSignalHandler()
 
@@ -77,20 +82,30 @@ func main() {
 
 	var mgr ctrl.Manager
 	var err error
+	ctrlConfig := settingsv1alpha1.SettingsConfig{}
 	options := ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		//		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "67a0541b.pipeline-service.io",
-		LeaderElectionConfig:   restConfig,
+		// LeaderElectionID:       "67a0541b.pipeline-service.io",
+		LeaderElectionNamespace: leaderElectionNs,
+		LeaderElectionConfig:    restConfig,
+	}
+	if configFile != "" {
+		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&ctrlConfig))
+		if err != nil {
+			setupLog.Error(err, "unable to load the config file")
+			os.Exit(1)
+		}
 	}
 	if kcpAPIsGroupPresent(restConfig) {
 		setupLog.Info("Looking up virtual workspace URL")
 		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportName)
 		if err != nil {
 			setupLog.Error(err, "error looking up virtual workspace URL")
+			os.Exit(1)
 		}
 
 		setupLog.Info("Using virtual workspace URL", "url", cfg.Host)
@@ -111,8 +126,9 @@ func main() {
 	}
 
 	if err = (&controllers.SettingsReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		CtrlConfig: ctrlConfig,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Settings")
 		os.Exit(1)
