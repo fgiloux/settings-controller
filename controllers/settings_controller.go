@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/kcp-dev/logicalcluster/v2"
@@ -75,18 +76,17 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	npCondition.Reason = "NetworkPoliciesCreated"
-	npCondition.Message = "NetworkPolicies for pipeline-service have been successfully created in kcp-system namespace"
+	npCondition.Message = fmt.Sprintf("NetworkPolicies successfully created in %q namespace", r.CtrlConfig.Namespace)
 	npCondition.Status = metav1.ConditionTrue
 
 	conditionNew := true
 	conditionChanged := false
 	var rtnErr error
 
-	// TODO: a single NP for a single namespace for now.
-	// The current limiting design is not to allow users to CRUD namespaces
-	// TODO: namespace should be named pipeline-service, would need to be created
+	// Currently a single NetworkPolicy created in a single namespace defined in the operator configuration
+	// There is no enforcement, more a feature (hermetic build) than a constraint.
 	var wsNP netv1.NetworkPolicy
-	wsNP.SetNamespace("kcp-system")
+	wsNP.SetNamespace(r.CtrlConfig.Namespace)
 	wsNP.SetName("platform")
 	wsNP.SetOwnerReferences([]metav1.OwnerReference{metav1.OwnerReference{
 		Name:       s.GetName(),

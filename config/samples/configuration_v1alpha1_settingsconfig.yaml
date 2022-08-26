@@ -1,7 +1,21 @@
 apiVersion: configuration.pipeline-service.io/v1alpha1
 kind: SettingsConfig
-metadata:
-  name: settingsconfig-sample
-spec:
-  # Add fields here
-  foo: bar
+health:
+  healthProbeBindAddress: :8081
+metrics:
+  bindAddress: 127.0.0.1:8080
+webhook:
+  port: 9443
+leaderElection:
+  leaderElect: true
+  resourceName: 67a0541b.pipeline-service.io
+namespace: settings-ps-controller
+networkPolicyConfig:
+  egress:
+    - to:
+      - ipBlock:
+          cidr: 10.0.0.0/24
+      ports:
+        - protocol: TCP
+          port: 5978
+

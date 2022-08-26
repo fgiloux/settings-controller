@@ -9,6 +9,7 @@ webhook:
 leaderElection:
   leaderElect: true
   resourceName: 67a0541b.pipeline-service.io
+namespace: settings-ps-controller
 networkPolicyConfig:
   egress:
     - to:
