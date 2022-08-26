@@ -32,6 +32,7 @@ spec:
         args:
         - --api-export-name=configuration.pipeline-service.io
         - --leader-elect
+        - -v 2
         image: controller:latest
         name: manager
         volumeMounts:

@@ -79,7 +79,7 @@ APIEXPORT_NAME ?= pipeline-service.io
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go --api-export-name $(NAME_PREFIX)$(APIEXPORT_NAME)
+	go run ./main.go --api-export-name $(NAME_PREFIX)$(APIEXPORT_NAME) $(ARGS)
 
 .PHONY: docker-build
 docker-build: build ## Build docker image with the manager.

@@ -42,7 +42,7 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// Add the logical cluster to the context
 	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 
-	logger.Info("Getting Settings")
+	logger.V(3).Info("Getting Settings")
 	var s settingsv1alpha1.Settings
 	if err := r.Get(ctx, req.NamespacedName, &s); err != nil {
 		if errors.IsNotFound(err) {
@@ -54,14 +54,30 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	npCondition := metav1.Condition{
 		Type:   "NetworkPoliciesReady",
-		Status: metav1.ConditionTrue,
+		Status: metav1.ConditionUnknown,
 		LastTransitionTime: metav1.Time{
 			Time: time.Now().UTC(),
 		},
-		Reason:  "NetworkPoliciesCreated",
-		Message: "NetworkPolicies for pipeline-service have successfully been created in kcp-system namespace",
+		Reason:  "Unknown",
+		Message: "Unknown",
 	}
+
 	scopy := s.DeepCopy()
+
+	if len(s.Status.Conditions) == 0 {
+		patch := client.MergeFrom(scopy)
+		s.Status.Conditions = append(s.Status.Conditions, npCondition)
+		err := r.Status().Patch(ctx, &s, patch)
+		if err != nil {
+			logger.Info("Patch error", "error", err)
+		}
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	npCondition.Reason = "NetworkPoliciesCreated"
+	npCondition.Message = "NetworkPolicies for pipeline-service have been successfully created in kcp-system namespace"
+	npCondition.Status = metav1.ConditionTrue
+
 	conditionNew := true
 	conditionChanged := false
 	var rtnErr error
@@ -92,10 +108,9 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		npCondition.Reason = "Error"
 		npCondition.Message = "Unable to create or patch the NetworkPolicy"
 	}
-	logger.Info(string(operationResult), "networkPolicy", wsNP.GetName())
+	logger.V(2).Info(string(operationResult), "networkPolicy", wsNP.GetName())
 
 	// Update the condition only if it is missing or the status of the available condition has changed.
-	// TODO: it would be good to set condition to unknown at the very beginning of the processing when none has been defined and to reloop
 	for i, condition := range s.Status.Conditions {
 		if condition.Type == npCondition.Type {
 			conditionNew = false
@@ -112,7 +127,7 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if conditionChanged {
-		logger.Info("Patching Settings status to store the new condition(s) in the current logical cluster")
+		logger.V(3).Info("Patching Settings status to store the new condition(s) in the current logical cluster")
 		patch := client.MergeFrom(scopy)
 
 		if err := r.Status().Patch(ctx, &s, patch); err != nil {

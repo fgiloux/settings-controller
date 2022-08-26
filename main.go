@@ -70,7 +70,6 @@ func main() {
 	klog.InitFlags(flag.CommandLine)
 
 	flag.Parse()
-	flag.Lookup("v").Value.Set("6")
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&logOpts)))
 
@@ -101,7 +100,7 @@ func main() {
 		}
 	}
 	if kcpAPIsGroupPresent(restConfig) {
-		setupLog.Info("Looking up virtual workspace URL")
+		setupLog.V(1).Info("Looking up virtual workspace URL")
 		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportName)
 		if err != nil {
 			setupLog.Error(err, "error looking up virtual workspace URL")
