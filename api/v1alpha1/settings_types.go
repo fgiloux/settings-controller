@@ -18,6 +18,7 @@ type SettingsStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 //  Settings is the Schema for the settings API
 type Settings struct {

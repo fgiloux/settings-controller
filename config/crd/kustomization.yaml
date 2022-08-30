@@ -3,7 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/configuration.pipeline-service.io_settings.yaml
-- bases/configuration.pipeline-service.io_settingsconfigs.yaml
+# - bases/configuration.pipeline-service.io_settingsconfigs.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

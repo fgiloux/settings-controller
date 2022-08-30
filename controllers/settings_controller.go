@@ -36,7 +36,7 @@ type SettingsReconciler struct {
 func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	// Include the clusterName from req.ObjectKey in the logger, similar to the namespace and name keys that are already
+	// Include the clusterName from req.ClusterName in the logger, similar to the namespace and name keys that are already
 	// there.
 	logger = logger.WithValues("clusterName", req.ClusterName)
 
@@ -91,7 +91,7 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	wsNP.SetOwnerReferences([]metav1.OwnerReference{metav1.OwnerReference{
 		Name:       s.GetName(),
 		UID:        s.GetUID(),
-		APIVersion: "v1alpha1",
+		APIVersion: "configuration.pipeline-service.io/v1alpha1",
 		Kind:       "Settings",
 		Controller: func() *bool { x := true; return &x }(),
 	}})
