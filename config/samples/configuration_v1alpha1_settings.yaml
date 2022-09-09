@@ -1,6 +1,0 @@
-apiVersion: configuration.pipeline-service.io/v1alpha1
-kind: Settings
-metadata:
-  name: settings-sample
-spec:
-  # TODO(user): Add fields here

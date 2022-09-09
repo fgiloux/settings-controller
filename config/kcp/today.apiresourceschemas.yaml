@@ -28,14 +28,6 @@ spec:
           type: string
         metadata:
           type: object
-        spec:
-          description: SettingsSpec defines the desired state of the Settings
-          properties:
-            networkPolicy:
-              type: string
-            quota:
-              type: string
-          type: object
         status:
           description: SettingsStatus defines the observed state of the Settings
           properties:

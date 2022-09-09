@@ -67,10 +67,37 @@ make install
 2. Run the operator (this will run in the foreground, so switch to a new terminal if you want to leave it running):
 
 ```sh
-make run
+make run ARGS="-v 6 --config=config/manager/controller_manager_config_test.yaml --api-export-name=settings-configuration.pipeline-service.io"
 ```
 
 **NOTE:** You can also run this in one step by running: `make install run`
+
+Here is an example of a launch configuration for VSCode
+
+~~~
+{
+    // TODO: the kubeconfig path needs to be updated to point to the file
+    // in the local environment
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "go",
+            "request": "launch",
+            "name": "Debug App",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--api-export-name", "settings-configuration.pipeline-service.io"
+                "--config", "config/manager/controller_manager_config_test.yaml"
+                "-v", "6"
+            ],
+            "env": {
+                "KUBECONFIG":"/tmp/kcp-runtime/.kcp/admin.kubeconfig"
+            },
+        }
+
+    ]
+}
+~~~
 
 ### Modifying the API definitions
 

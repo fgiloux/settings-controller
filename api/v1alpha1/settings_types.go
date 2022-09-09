@@ -4,12 +4,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SettingsSpec defines the desired state of the Settings
-type SettingsSpec struct {
-	Quota         string `json:"quota,omitempty"`
-	NetworkPolicy string `json:"networkPolicy,omitempty"`
-}
-
 // SettingsStatus defines the observed state of the Settings
 type SettingsStatus struct {
 	// Conditions represent the latest available observations of an object's state
@@ -25,7 +19,6 @@ type Settings struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SettingsSpec   `json:"spec,omitempty"`
 	Status SettingsStatus `json:"status,omitempty"`
 }
 

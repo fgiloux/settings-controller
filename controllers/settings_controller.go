@@ -10,48 +10,59 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	settingsv1alpha1 "github.com/fgiloux/settings-controller/api/v1alpha1"
+	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 )
 
-// SettingsReconciler reconciles a Settings object
 type SettingsReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	CtrlConfig settingsv1alpha1.SettingsConfig
 }
 
+const SettingName = "pipeline-service"
+
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups="apis.kcp.dev",resources=apibindings,verbs=get;list;watch
+// +kubebuilder:rbac:groups="apis.kcp.dev",resources=apibindings/status,verbs=get
+// +kubebuilder:rbac:groups="apis.kcp.dev",resources=apibindings/finalizers,verbs=update
 
 // +kubebuilder:rbac:groups=configuration.pipeline-service.io,resources=settings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=configuration.pipeline-service.io,resources=settings/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=configuration.pipeline-service.io,resources=settings/finalizers,verbs=update
 
 func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
+	//logger := log.FromContext(ctx)
+	logger := ctrl.Log.WithName("settings-reconciler")
 
 	// Include the clusterName from req.ClusterName in the logger, similar to the namespace and name keys that are already
 	// there.
 	logger = logger.WithValues("clusterName", req.ClusterName)
+	logger.V(0).Info("Starting reconcile")
 
 	// Add the logical cluster to the context
 	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 
-	logger.V(3).Info("Getting Settings")
-	var s settingsv1alpha1.Settings
-	if err := r.Get(ctx, req.NamespacedName, &s); err != nil {
+	logger.V(3).Info("Getting APIBinding", "NamespacedName", req.NamespacedName)
+	var ab apisv1alpha1.APIBinding
+	if err := r.Get(ctx, req.NamespacedName, &ab); err != nil {
 		if errors.IsNotFound(err) {
 			// Normal - was deleted
+			// Rely on owner references for cascading deletion
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
+
+	// TODO: I should only check relevant APIBindings
 
 	npCondition := metav1.Condition{
 		Type:   "NetworkPoliciesReady",
@@ -61,6 +72,31 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		},
 		Reason:  "Unknown",
 		Message: "Unknown",
+	}
+
+	// get the settings associated with the apibinding
+	var s settingsv1alpha1.Settings
+	sn := types.NamespacedName{
+		Namespace: req.Namespace,
+		Name:      SettingName,
+	}
+	if err := r.Get(ctx, sn, &s); err != nil {
+		if errors.IsNotFound(err) {
+			// Settings need to be created
+			logger.V(3).Info("Settings not found (needs to be created)", "NamespacedName", sn)
+			s = settingsv1alpha1.Settings{}
+			s.SetName(SettingName)
+			// Set the APIBinding instance as the owner and controller
+			ctrl.SetControllerReference(&ab, &s, r.Scheme)
+			if err = r.Create(ctx, &s); err != nil {
+				logger.Error(err, "unable to create settings", "resource", s)
+				return ctrl.Result{}, err
+			}
+			logger.V(1).Info("Settings created")
+			return ctrl.Result{Requeue: true}, nil
+		} else {
+			return ctrl.Result{}, err
+		}
 	}
 
 	scopy := s.DeepCopy()
@@ -75,6 +111,8 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	// TODO: Create r.CtrlConfig.Namespace if it does not exist
+
 	npCondition.Reason = "NetworkPoliciesCreated"
 	npCondition.Message = fmt.Sprintf("NetworkPolicies successfully created in %q namespace", r.CtrlConfig.Namespace)
 	npCondition.Status = metav1.ConditionTrue
@@ -88,13 +126,8 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var wsNP netv1.NetworkPolicy
 	wsNP.SetNamespace(r.CtrlConfig.Namespace)
 	wsNP.SetName("platform")
-	wsNP.SetOwnerReferences([]metav1.OwnerReference{metav1.OwnerReference{
-		Name:       s.GetName(),
-		UID:        s.GetUID(),
-		APIVersion: "configuration.pipeline-service.io/v1alpha1",
-		Kind:       "Settings",
-		Controller: func() *bool { x := true; return &x }(),
-	}})
+	// Set the APIBinding instance as the owner and controller
+	ctrl.SetControllerReference(&ab, &wsNP, r.Scheme)
 	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {
 		wsNP.Spec = netv1.NetworkPolicySpec{
 			PolicyTypes: []netv1.PolicyType{"Egress"},
@@ -143,9 +176,11 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 // SetupWithManager sets up the controller with the Manager.
+// TODO: I need to filter the apibindings
 func (r *SettingsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&settingsv1alpha1.Settings{}).
+		For(&apisv1alpha1.APIBinding{}).
+		Owns(&settingsv1alpha1.Settings{}).
 		Owns(&netv1.NetworkPolicy{}).
 		Complete(r)
 }

@@ -1,6 +1,6 @@
 module github.com/fgiloux/settings-controller
 
-go 1.17
+go 1.18
 
 require (
 	// github.com/kcp-dev/kcp/pkg/apis v0.5.0-alpha.1
@@ -86,7 +86,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-// replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.11.3-0.20220624161137-f6e5a2f56683
 replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
-
-// replace sigs.k8s.io/controller-runtime => ../controller-runtime

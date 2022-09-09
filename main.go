@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/discovery"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -39,6 +38,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(settingsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 
@@ -52,6 +52,7 @@ func main() {
 	var leaderElectionNs string
 	var probeAddr string
 	var apiExportName string
+	// The file configuration takes precedence over the flags and their default values.
 	flag.StringVar(&configFile, "config", "/config/controller_manager_config.yaml", "The controller will load its initial configuration from this file. "+
 		"Omit this flag to use the default configuration values. "+
 		"Command-line flags override configuration from this file.")
@@ -79,6 +80,11 @@ func main() {
 
 	setupLog = setupLog.WithValues("api-export-name", apiExportName)
 
+	/*if err := apisv1alpha1.AddToScheme(scheme); err != nil {
+		setupLog.Error(err, "error adding apis.kcp.dev/v1alpha1 to scheme")
+		os.Exit(1)
+	}*/
+
 	var mgr ctrl.Manager
 	var err error
 	ctrlConfig := settingsv1alpha1.SettingsConfig{}
@@ -92,6 +98,24 @@ func main() {
 		LeaderElectionNamespace: leaderElectionNs,
 		LeaderElectionConfig:    restConfig,
 	}
+	// Use a custom cache to filter APIBindings.
+	// https://github.com/kubernetes-sigs/controller-runtime/blob/master/designs/use-selectors-at-cache.md
+	// It may go away if kcp makes it possible to only watch APIBindings
+	// for the specified APIExport.
+	// TODO: make exportName and path configurable through SettingsConfig
+	// This does not work, opened issue: https://github.com/kcp-dev/controller-runtime/issues/25
+	// Predicates could be used instead. Events are filtered but cache still gets populated:
+	// https://sdk.operatorframework.io/docs/building-operators/golang/references/event-filtering/
+	/*options.NewCache = cache.BuilderWithOptions(cache.Options{
+		SelectorsByObject: cache.SelectorsByObject{
+			&apisv1alpha1.APIBinding{}: {
+				Field: fields.SelectorFromSet(fields.Set{
+					"spec.reference.workspace.exportName": "settings-configuration.pipeline-service.io",
+					"spec.reference.workspace.path":       "root:pipeline-service:management",
+				}),
+			},
+		},
+	})*/
 	if configFile != "" {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&ctrlConfig))
 		if err != nil {
@@ -99,29 +123,21 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	if kcpAPIsGroupPresent(restConfig) {
-		setupLog.V(1).Info("Looking up virtual workspace URL")
-		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportName)
-		if err != nil {
-			setupLog.Error(err, "error looking up virtual workspace URL")
-			os.Exit(1)
-		}
 
-		setupLog.Info("Using virtual workspace URL", "url", cfg.Host)
+	setupLog.V(1).Info("Looking up virtual workspace URL")
+	cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportName)
+	if err != nil {
+		setupLog.Error(err, "error looking up virtual workspace URL")
+		os.Exit(1)
+	}
 
-		options.LeaderElectionConfig = restConfig
-		mgr, err = kcp.NewClusterAwareManager(cfg, options)
-		if err != nil {
-			setupLog.Error(err, "unable to start cluster aware manager")
-			os.Exit(1)
-		}
-	} else {
-		setupLog.Info("The apis.kcp.dev group is not present - creating standard manager")
-		mgr, err = ctrl.NewManager(restConfig, options)
-		if err != nil {
-			setupLog.Error(err, "unable to start manager")
-			os.Exit(1)
-		}
+	setupLog.Info("Using virtual workspace URL", "url", cfg.Host)
+
+	options.LeaderElectionConfig = restConfig
+	mgr, err = kcp.NewClusterAwareManager(cfg, options)
+	if err != nil {
+		setupLog.Error(err, "unable to start cluster aware manager")
+		os.Exit(1)
 	}
 
 	if err = (&controllers.SettingsReconciler{
@@ -156,6 +172,7 @@ func main() {
 // restConfigForAPIExport returns a *rest.Config properly configured to communicate with the endpoint for the
 // APIExport's virtual workspace.
 func restConfigForAPIExport(ctx context.Context, cfg *rest.Config, apiExportName string) (*rest.Config, error) {
+
 	scheme := runtime.NewScheme()
 	if err := apisv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("error adding apis.kcp.dev/v1alpha1 to scheme: %w", err)
@@ -196,28 +213,4 @@ func restConfigForAPIExport(ctx context.Context, cfg *rest.Config, apiExportName
 	cfg.Host = apiExport.Status.VirtualWorkspaces[0].URL
 
 	return cfg, nil
-}
-
-func kcpAPIsGroupPresent(restConfig *rest.Config) bool {
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-	if err != nil {
-		setupLog.Error(err, "failed to create discovery client")
-		os.Exit(1)
-	}
-	apiGroupList, err := discoveryClient.ServerGroups()
-	if err != nil {
-		setupLog.Error(err, "failed to get server groups")
-		os.Exit(1)
-	}
-
-	for _, group := range apiGroupList.Groups {
-		if group.Name == apisv1alpha1.SchemeGroupVersion.Group {
-			for _, version := range group.Versions {
-				if version.Version == apisv1alpha1.SchemeGroupVersion.Version {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
