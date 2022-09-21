@@ -23,6 +23,8 @@ make docker-build docker-push IMG=<some-registry>/settings-operator:tag
 
 ### Deploying to kcp
 
+The parameter specifying the workspace where the APIExport is located needs to be amended in [the controller deployment](config/manager/manager.yaml) to match the environment.
+ 
 Deploy the operator to kcp with the image specified by `IMG`:
 
 ```sh

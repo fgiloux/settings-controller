@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kcp-dev/logicalcluster/v2"
+	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,8 +22,10 @@ import (
 
 type SettingsReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	CtrlConfig settingsv1alpha1.SettingsConfig
+	Scheme          *runtime.Scheme
+	CtrlConfig      settingsv1alpha1.SettingsConfig
+	ExportWorkspace string
+	ExportName      string
 }
 
 const SettingName = "pipeline-service"
@@ -62,7 +65,14 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	// TODO: I should only check relevant APIBindings
+	// Only process the relevant APIBinding
+	// It may go away if kcp makes it possible to only watch APIBindings
+	// for the specified APIExport.
+	if ab.Spec.Reference.Workspace.ExportName != r.ExportName ||
+		ab.Spec.Reference.Workspace.Path != r.ExportWorkspace {
+		logger.V(3).Info("APIBinding excluded", "NamespacedName", req.NamespacedName)
+		return ctrl.Result{}, nil
+	}
 
 	npCondition := metav1.Condition{
 		Type:   "NetworkPoliciesReady",
@@ -111,7 +121,24 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// TODO: Create r.CtrlConfig.Namespace if it does not exist
+	var ns corev1.Namespace
+	if err := r.Get(ctx, types.NamespacedName{Name: r.CtrlConfig.Namespace}, &ns); err != nil {
+		if errors.IsNotFound(err) {
+			ns.SetName(r.CtrlConfig.Namespace)
+			// Set the APIBinding instance as the owner and controller
+			ctrl.SetControllerReference(&ab, &ns, r.Scheme)
+			if err = r.Create(ctx, &ns); err != nil {
+				logger.Error(err, "unable to create namespace", "resource", ns)
+				return ctrl.Result{}, err
+			}
+			logger.V(1).Info("Settings created")
+			return ctrl.Result{Requeue: true}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// TODO: Add quotas
+	// TODO: Amend the networkPolicies defined in configuration
 
 	npCondition.Reason = "NetworkPoliciesCreated"
 	npCondition.Message = fmt.Sprintf("NetworkPolicies successfully created in %q namespace", r.CtrlConfig.Namespace)
@@ -176,7 +203,6 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 // SetupWithManager sets up the controller with the Manager.
-// TODO: I need to filter the apibindings
 func (r *SettingsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apisv1alpha1.APIBinding{}).

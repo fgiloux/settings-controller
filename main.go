@@ -52,11 +52,13 @@ func main() {
 	var leaderElectionNs string
 	var probeAddr string
 	var apiExportName string
+	var apiExportWs string
 	// The file configuration takes precedence over the flags and their default values.
 	flag.StringVar(&configFile, "config", "/config/controller_manager_config.yaml", "The controller will load its initial configuration from this file. "+
 		"Omit this flag to use the default configuration values. "+
 		"Command-line flags override configuration from this file.")
-	flag.StringVar(&apiExportName, "api-export-name", "", "The name of the APIExport.")
+	flag.StringVar(&apiExportName, "api-export-name", "settings-configuration.pipeline-service.io", "The name of the APIExport.")
+	flag.StringVar(&apiExportWs, "api-export-workspace", "", "The workspace containing the APIExport.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -98,24 +100,7 @@ func main() {
 		LeaderElectionNamespace: leaderElectionNs,
 		LeaderElectionConfig:    restConfig,
 	}
-	// Use a custom cache to filter APIBindings.
-	// https://github.com/kubernetes-sigs/controller-runtime/blob/master/designs/use-selectors-at-cache.md
-	// It may go away if kcp makes it possible to only watch APIBindings
-	// for the specified APIExport.
-	// TODO: make exportName and path configurable through SettingsConfig
-	// This does not work, opened issue: https://github.com/kcp-dev/controller-runtime/issues/25
-	// Predicates could be used instead. Events are filtered but cache still gets populated:
-	// https://sdk.operatorframework.io/docs/building-operators/golang/references/event-filtering/
-	/*options.NewCache = cache.BuilderWithOptions(cache.Options{
-		SelectorsByObject: cache.SelectorsByObject{
-			&apisv1alpha1.APIBinding{}: {
-				Field: fields.SelectorFromSet(fields.Set{
-					"spec.reference.workspace.exportName": "settings-configuration.pipeline-service.io",
-					"spec.reference.workspace.path":       "root:pipeline-service:management",
-				}),
-			},
-		},
-	})*/
+
 	if configFile != "" {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&ctrlConfig))
 		if err != nil {
@@ -141,9 +126,11 @@ func main() {
 	}
 
 	if err = (&controllers.SettingsReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		CtrlConfig: ctrlConfig,
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		CtrlConfig:      ctrlConfig,
+		ExportWorkspace: apiExportWs,
+		ExportName:      apiExportName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Settings")
 		os.Exit(1)
