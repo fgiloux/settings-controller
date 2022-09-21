@@ -138,7 +138,6 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// TODO: Add quotas
-	// TODO: Amend the networkPolicies defined in configuration
 
 	npCondition.Reason = "NetworkPoliciesCreated"
 	npCondition.Message = fmt.Sprintf("NetworkPolicies successfully created in %q namespace", r.CtrlConfig.Namespace)
@@ -152,14 +151,11 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// There is no enforcement, more a feature (hermetic build) than a constraint.
 	var wsNP netv1.NetworkPolicy
 	wsNP.SetNamespace(r.CtrlConfig.Namespace)
-	wsNP.SetName("platform")
+	wsNP.SetName("hermetic-build")
 	// Set the APIBinding instance as the owner and controller
 	ctrl.SetControllerReference(&ab, &wsNP, r.Scheme)
 	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {
-		wsNP.Spec = netv1.NetworkPolicySpec{
-			PolicyTypes: []netv1.PolicyType{"Egress"},
-			Egress:      r.CtrlConfig.NetPolConfig.Egress,
-		}
+		wsNP.Spec = r.CtrlConfig.NetPolConfig.Spec
 		return nil
 	})
 	if rtnErr != nil {

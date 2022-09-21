@@ -11,11 +11,11 @@ leaderElection:
   resourceName: 67a0541b.pipeline-service.io
 namespace: settings-ps-controller
 networkPolicyConfig:
-  egress:
-    - to:
-      - ipBlock:
-          cidr: 10.0.0.0/24
-      ports:
-        - protocol: TCP
-          port: 5978
+  spec:
+    podSelector:
+      matchLabels:
+        pipeline-service.io/network-isolation: "true"
+    policyTypes:
+    - Ingress
+    - Egress
 

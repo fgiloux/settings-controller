@@ -1,7 +1,5 @@
 # Pipeline Service Settings Operator
 
-Work in progress.
-
 This operator is in charge of managing the settings of [kcp](https://github.com/kcp-dev/kcp) workspaces used for [Pipeline Service](https://github.com/openshift-pipelines/pipeline-service).
 
 ## Description

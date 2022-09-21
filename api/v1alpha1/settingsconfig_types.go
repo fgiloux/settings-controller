@@ -9,15 +9,9 @@ import (
 // NOTE: json tags are required. Any new fields you add must have json tags for the fields to be serialized.
 
 type SettingsNetPolConfig struct {
-	// List of egress rules to be applied to the selected pods. Outgoing traffic is
-	// allowed if there are no NetworkPolicies selecting the pod (and cluster policy
-	// otherwise allows the traffic), OR if the traffic matches at least one egress rule
-	// across all of the NetworkPolicy objects whose podSelector matches the pod. If
-	// this field is empty then this NetworkPolicy limits all outgoing traffic (and serves
-	// solely to ensure that the pods it selects are isolated by default).
-	// This field is beta-level in 1.8
+	// Specification of the desired behavior for this NetworkPolicy.
 	// +optional
-	Egress []netv1.NetworkPolicyEgressRule `json:"egress,omitempty" protobuf:"bytes,3,rep,name=egress"`
+	Spec netv1.NetworkPolicySpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true
