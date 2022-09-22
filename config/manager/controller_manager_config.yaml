@@ -18,4 +18,11 @@ networkPolicyConfig:
     policyTypes:
     - Ingress
     - Egress
+quotaConfig:
+  spec:
+    hard:
+      count/deployments.apps: "0"
+      count/pipelineruns.tekton.dev: "10"
+      count/pipelines.tekton.dev: 1k
+      count/runs.tekton.dev: "10"
 

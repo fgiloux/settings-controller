@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
@@ -12,6 +13,12 @@ type SettingsNetPolConfig struct {
 	// Specification of the desired behavior for this NetworkPolicy.
 	// +optional
 	Spec netv1.NetworkPolicySpec `json:"spec,omitempty"`
+}
+
+type SettingsQuotaConfig struct {
+	// Defines the desired quota.
+	// +optional
+	Spec corev1.ResourceQuotaSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -35,6 +42,7 @@ type SettingsConfig struct {
 	Namespace string `json:"namespace,omitempty"`
 
 	NetPolConfig SettingsNetPolConfig `json:"networkPolicyConfig,omitempty"`
+	QuotaConfig  SettingsQuotaConfig  `json:"quotaConfig,omitempty"`
 }
 
 //+kubebuilder:object:root=true

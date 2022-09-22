@@ -6,6 +6,32 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - resourcequotas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - resourcequotas/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - resourcequotas/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - apis.kcp.dev
   resources:
   - apibindings

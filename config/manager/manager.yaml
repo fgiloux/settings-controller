@@ -30,8 +30,8 @@ spec:
       - command:
         - /manager
         args:
-        - --api-export-name=configuration.pipeline-service.io
-        - --api-export-workspace=root:pipeline-service:management
+        - --api-export-name=settings-configuration.pipeline-service.io
+        - --api-export-workspace="root:pipeline-service:management"
         - --leader-elect
         - -v 2
         image: controller:latest

@@ -29,10 +29,17 @@ type SettingsReconciler struct {
 }
 
 const SettingName = "pipeline-service"
+const NpName = "hermetic-build"
+const QtName = "settings"
+const QuotaAnnotation = "\"experimental.quota.kcp.dev/cluster-scoped\": \"true\""
 
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=networkpolicies/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=resourcequotas/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=resourcequotas/finalizers,verbs=update
 
 // +kubebuilder:rbac:groups="apis.kcp.dev",resources=apibindings,verbs=get;list;watch
 // +kubebuilder:rbac:groups="apis.kcp.dev",resources=apibindings/status,verbs=get
@@ -84,6 +91,16 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		Message: "Unknown",
 	}
 
+	qtCondition := metav1.Condition{
+		Type:   "QuotasReady",
+		Status: metav1.ConditionUnknown,
+		LastTransitionTime: metav1.Time{
+			Time: time.Now().UTC(),
+		},
+		Reason:  "Unknown",
+		Message: "Unknown",
+	}
+
 	// get the settings associated with the apibinding
 	var s settingsv1alpha1.Settings
 	sn := types.NamespacedName{
@@ -114,6 +131,7 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if len(s.Status.Conditions) == 0 {
 		patch := client.MergeFrom(scopy)
 		s.Status.Conditions = append(s.Status.Conditions, npCondition)
+		s.Status.Conditions = append(s.Status.Conditions, qtCondition)
 		err := r.Status().Patch(ctx, &s, patch)
 		if err != nil {
 			logger.Info("Patch error", "error", err)
@@ -137,24 +155,46 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	// TODO: Add quotas
-
 	npCondition.Reason = "NetworkPoliciesCreated"
 	npCondition.Message = fmt.Sprintf("NetworkPolicies successfully created in %q namespace", r.CtrlConfig.Namespace)
 	npCondition.Status = metav1.ConditionTrue
 
-	conditionNew := true
-	conditionChanged := false
+	qtCondition.Reason = "QuotasCreated"
+	qtCondition.Message = fmt.Sprintf("Quotas successfully created in %q namespace", r.CtrlConfig.Namespace)
+	qtCondition.Status = metav1.ConditionTrue
+
 	var rtnErr error
 
-	// Currently a single NetworkPolicy created in a single namespace defined in the operator configuration
+	// A single Quota created in a single namespace defined in the operator configuration
+	// The annotation makes the quota cluster scoped.
+	// Reverse claim should enforce that the quota cannot be changed by a workspace admin
+	// as long the workspace is bound to the apiexport of the controller
+	var wsQt corev1.ResourceQuota
+	wsQt.SetNamespace(r.CtrlConfig.Namespace)
+	wsQt.SetName(QtName)
+	wsQt.SetAnnotations(map[string]string{"experimental.quota.kcp.dev/cluster-scoped": "true"})
+	// Set the APIBinding instance as the owner and controller
+	ctrl.SetControllerReference(&ab, &wsQt, r.Scheme)
+	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsQt, func() error {
+		wsQt.Spec = r.CtrlConfig.QuotaConfig.Spec
+		return nil
+	})
+	if rtnErr != nil {
+		logger.Error(rtnErr, "unable to create or patch the ResourceQuota")
+		qtCondition.Status = metav1.ConditionFalse
+		qtCondition.Reason = "Error"
+		qtCondition.Message = "Unable to create or patch the ResourceQuota"
+	}
+	logger.V(2).Info(string(operationResult), "resource", wsQt)
+
+	// A single NetworkPolicy created in a single namespace defined in the operator configuration
 	// There is no enforcement, more a feature (hermetic build) than a constraint.
 	var wsNP netv1.NetworkPolicy
 	wsNP.SetNamespace(r.CtrlConfig.Namespace)
-	wsNP.SetName("hermetic-build")
+	wsNP.SetName(NpName)
 	// Set the APIBinding instance as the owner and controller
 	ctrl.SetControllerReference(&ab, &wsNP, r.Scheme)
-	operationResult, rtnErr := cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {
+	operationResult, rtnErr = cutil.CreateOrPatch(ctx, r.Client, &wsNP, func() error {
 		wsNP.Spec = r.CtrlConfig.NetPolConfig.Spec
 		return nil
 	})
@@ -164,25 +204,30 @@ func (r *SettingsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		npCondition.Reason = "Error"
 		npCondition.Message = "Unable to create or patch the NetworkPolicy"
 	}
-	logger.V(2).Info(string(operationResult), "networkPolicy", wsNP.GetName())
+	logger.V(2).Info(string(operationResult), "resource", wsNP)
 
-	// Update the condition only if it is missing or the status of the available condition has changed.
+	// Update the condition only if it is missing, the status or the reason of the available condition has changed.
+	npConditionChanged := true
+	qtConditionChanged := true
 	for i, condition := range s.Status.Conditions {
 		if condition.Type == npCondition.Type {
-			conditionNew = false
 			if condition.Status != npCondition.Status || condition.Reason != npCondition.Reason {
 				s.Status.Conditions[i] = npCondition
-				conditionChanged = true
-				break
+				continue
+			} else {
+				npConditionChanged = false
+			}
+		}
+		if condition.Type == qtCondition.Type {
+			if condition.Status != qtCondition.Status || condition.Reason != qtCondition.Reason {
+				s.Status.Conditions[i] = qtCondition
+			} else {
+				qtConditionChanged = false
 			}
 		}
 	}
-	if conditionNew {
-		s.Status.Conditions = append(s.Status.Conditions, npCondition)
-		conditionChanged = true
-	}
 
-	if conditionChanged {
+	if npConditionChanged || qtConditionChanged {
 		logger.V(3).Info("Patching Settings status to store the new condition(s) in the current logical cluster")
 		patch := client.MergeFrom(scopy)
 
@@ -203,6 +248,7 @@ func (r *SettingsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apisv1alpha1.APIBinding{}).
 		Owns(&settingsv1alpha1.Settings{}).
+		Owns(&corev1.ResourceQuota{}).
 		Owns(&netv1.NetworkPolicy{}).
 		Complete(r)
 }
