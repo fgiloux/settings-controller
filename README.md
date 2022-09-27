@@ -67,7 +67,7 @@ make install
 2. Run the operator (this will run in the foreground, so switch to a new terminal if you want to leave it running):
 
 ```sh
-make run ARGS="-v 6 --zap-log-level 6 --zap-devel true --config=config/manager/controller_manager_config_test.yaml --api-export-name=settings-configuration.pipeline-service.io --api-export-workspace <installation-ws>"
+make run ARGS="-v=6 --zap-log-level=6 --zap-devel=true --config=config/manager/controller_manager_config_test.yaml --api-export-name=settings-configuration.pipeline-service.io --api-export-workspace=<installation-ws>"
 ```
 
 **NOTE:** You can also run this in one step by running: `make install run`

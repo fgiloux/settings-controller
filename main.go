@@ -54,7 +54,7 @@ func main() {
 	var apiExportName string
 	var apiExportWs string
 	// The file configuration takes precedence over the flags and their default values.
-	flag.StringVar(&configFile, "config", "/config/controller_manager_config.yaml", "The controller will load its initial configuration from this file. "+
+	flag.StringVar(&configFile, "config", "config/manager/controller_manager_config.yaml", "The controller will load its initial configuration from this file. "+
 		"Omit this flag to use the default configuration values. "+
 		"Command-line flags override configuration from this file.")
 	flag.StringVar(&apiExportName, "api-export-name", "settings-configuration.pipeline-service.io", "The name of the APIExport.")
