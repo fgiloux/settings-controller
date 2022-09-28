@@ -9,6 +9,9 @@ Pipeline Service offers an infrastructure to easily run Tekton Pipelines in a se
 - Quotas limit the amount of compute resources that can be consumed.
 - NetworkPolicies restrict the access granted to the pods running the pipeline tasks to support hermetic builds.
 
+Here is a  ~5 minutes demo  of the operator.
+[![asciicast](https://asciinema.org/a/524246.svg)](https://asciinema.org/a/524246)
+
 ## Getting Started
 
 ### Building the image
